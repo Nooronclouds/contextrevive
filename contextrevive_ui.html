@@ -767,6 +767,7 @@
       <button class="scenario-btn" data-scenario="customer_support" id="btnCustomer" disabled>Customer Support</button>
       <button class="scenario-btn" data-scenario="student_tutor" id="btnTutor" disabled>Student Tutor</button>
       <button class="scenario-btn" data-scenario="project_planning" id="btnProject" disabled>Project Planning</button>
+      <button class="scenario-btn" data-scenario="free_chat" id="btnFree" disabled>✦ Free Chat</button>
     </div>
     <div class="timeline" id="timeline">
       <div class="timeline-empty">Select a scenario to load timeline</div>
@@ -855,6 +856,7 @@
   let sessionId = null;
   let backendOnline = false;
   let currentScenario = null;
+  let nextTurnIndex = 1;
   let pollTimer = null;
   let lastReconstruction = null;
   let waitingResponse = false;
@@ -901,6 +903,7 @@
         document.getElementById('btnCustomer').disabled = false;
         document.getElementById('btnTutor').disabled = false;
         document.getElementById('btnProject').disabled = false;
+        document.getElementById('btnFree').disabled = false;
       } else throw new Error('not ok');
     } catch (e) {
       pill.classList.remove('online'); pill.classList.add('offline');
@@ -917,6 +920,20 @@
       btn.classList.add('active');
       const scenario = btn.dataset.scenario;
       currentScenario = scenario;
+
+      if (scenario === 'free_chat') {
+        const data = await api('POST', '/sessions', { scenario: null });
+        sessionId = data.session_id;
+        nextTurnIndex = 1;
+        document.getElementById('chatTitle').textContent = 'FREE CHAT SESSION';
+        document.getElementById('chatMessages').innerHTML = '';
+        document.getElementById('chatInput').disabled = false;
+        document.getElementById('sendBtn').disabled = false;
+        document.getElementById('simulateBtn').disabled = false;
+        startPolling();
+        return;
+      }
+
       try {
         const data = await api('POST', '/sessions', { scenario });
         sessionId = data.session_id || data.id || data.sessionId;
@@ -953,6 +970,7 @@
             <div class="msg-bubble">${escapeHtml(turn.content_preview || turn.content || '')}</div>`;
           chatMessages.appendChild(w);
         });
+        nextTurnIndex = turns.length + 1;
         scrollChat();
 
         startPolling();
@@ -1014,12 +1032,18 @@
     const gapEl = document.getElementById('gapDetected');
     if (hasGaps) {
       gapEl.textContent = 'YES'; gapEl.className = 'yes';
-      const range = (gaps.gap_ranges && gaps.gap_ranges[0]) || gaps.range || [];
-      if (range.length === 2) {
+      const ranges = gaps.gap_ranges || (gaps.range && gaps.range.length === 2 ? [gaps.range] : []);
+      if (ranges.length > 1) {
         document.getElementById('gapRangeRow').classList.remove('hidden');
-        document.getElementById('gapRange').textContent = `Turns ${range[0]}–${range[1]}`;
+        document.getElementById('gapRange').textContent =
+          ranges.map(r => `T${r[0]}`).join(', ');
+      } else if (ranges.length === 1) {
+        document.getElementById('gapRangeRow').classList.remove('hidden');
+        document.getElementById('gapRange').textContent =
+          `Turns ${ranges[0][0]}–${ranges[0][1]}`;
       }
-      const missCount = gaps.total_missing || gaps.missing_count || (range.length === 2 ? range[1] - range[0] + 1 : 0);
+      const missCount = gaps.total_missing || gaps.missing_count ||
+        ranges.reduce((s, r) => s + (r[1] - r[0] + 1), 0);
       document.getElementById('gapMissingRow').classList.remove('hidden');
       document.getElementById('gapMissing').textContent = `${missCount} turns`;
       const sev = (gaps.severity || (missCount >= 5 ? 'HIGH' : missCount >= 3 ? 'MEDIUM' : 'LOW')).toUpperCase();
@@ -1110,7 +1134,7 @@
       setTimeout(() => ringSvg.classList.remove('ring-pulse'), 1800);
       await refreshStatus();
       // Grey out lost turns in chat
-      [5,6,7,8].forEach(idx => {
+      gapIndices.forEach(idx => {
         const bubble = document.querySelector(`.msg-wrap[data-turn-index="${idx}"]`);
         if (bubble) {
           bubble.style.opacity = '0.3';
@@ -1178,6 +1202,7 @@
     clearEmpty();
     const w = document.createElement('div');
     w.className = 'msg-wrap user';
+    w.dataset.turnIndex = nextTurnIndex++;
     w.innerHTML = `<div class="msg-label">YOU</div><div class="msg-bubble">${escapeHtml(text)}</div>`;
     m.appendChild(w);
     scrollChat();
@@ -1187,6 +1212,7 @@
     clearEmpty();
     const w = document.createElement('div');
     w.className = 'msg-wrap ai';
+    w.dataset.turnIndex = nextTurnIndex++;
     w.innerHTML = `<div class="msg-label">CONTEXT REVIVE</div><div class="msg-bubble">${escapeHtml(text)}</div>`;
     m.appendChild(w);
     scrollChat();

@@ -158,9 +158,9 @@ Respond ONLY with this JSON:
         topics_inferred = list(set(all_topics))
         confidence = lowest_confidence
 
-        if confidence >= 0.75:
+        if confidence >= 0.82:
             strategy = "silent"
-        elif confidence >= 0.55:
+        elif confidence >= 0.65:
             strategy = "soft"
         else:
             strategy = "ask_user"

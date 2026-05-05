@@ -14,7 +14,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from core.tracker import ConversationTracker
 from core.memory import MemoryManager
 from core.reconstructor import ContextReconstructor, ReconstructionResult
-from core.ollama_client import ask_ollama
+from core.ollama_client import ask_ollama, ask_groq
+from config import USE_GROQ
+llm = ask_groq if USE_GROQ else ask_ollama
 
 
 # ---------------------------------------------------------------------------
@@ -185,7 +187,7 @@ class ContextReviveAgent:
         )
 
         # Step 6 — Call Ollama
-        response_text = ask_ollama(user_prompt, system_prompt)
+        response_text = llm(user_prompt, system_prompt)
 
         # Step 7 — Record AI response
         ai_turn = self.tracker.add_turn(session_id, "ai", response_text)

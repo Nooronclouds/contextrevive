@@ -47,6 +47,21 @@ def ask_ollama(prompt: str, system: str = "") -> str:
         return ""
 
 
+def ask_groq(prompt: str, system: str = "") -> str:
+    import os
+    from groq import Groq
+    client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt}
+        ],
+        max_tokens=1000
+    )
+    return response.choices[0].message.content
+
+
 def get_embedding(text: str) -> list[float]:
     """
     Get a vector embedding for the given text via Ollama.

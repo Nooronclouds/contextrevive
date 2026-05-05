@@ -11,7 +11,9 @@ from dataclasses import dataclass
 # Ensure project root is importable
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from core.ollama_client import ask_ollama, parse_llm_json
+from core.ollama_client import ask_ollama, ask_groq, parse_llm_json
+from config import USE_GROQ
+llm = ask_groq if USE_GROQ else ask_ollama
 from core.tracker import ConversationTracker, GapReport
 from core.memory import MemoryManager
 
@@ -145,7 +147,7 @@ Respond ONLY with this exact JSON format:
 
         # ----- STEP 4: Call Ollama -----
         print(f"[Reconstructor] Calling llama3.1:8b for gap {gap_range}...")
-        raw_response = ask_ollama(user_prompt, system_prompt)
+        raw_response = llm(user_prompt, system_prompt)
         parsed = parse_llm_json(raw_response)
 
         if not parsed:

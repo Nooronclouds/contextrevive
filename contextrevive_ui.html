@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ContextRevive — Context Recovery Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep:        #0d0f1a;
+    --bg-navy:        #1F2544;
+    --bg-panel:       #252d4a;
+    --glass:          rgba(71, 79, 122, 0.45);
+    --border-violet:  #81689D;
+    --accent-pink:    #FFD0EC;
+    --accent-purple:  #a78bfa;
+    --accent-green:   #10b981;
+    --accent-amber:   #f59e0b;
+    --accent-red:     #ef4444;
+    --accent-blue:    #3b82f6;
+    --text-primary:   #f1f5f9;
+    --text-muted:     #94a3b8;
+    --text-dim:       #475569;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  body {
+    background:
+      radial-gradient(ellipse at top left, rgba(167,139,250,0.08), transparent 60%),
+      radial-gradient(ellipse at bottom right, rgba(255,208,236,0.05), transparent 60%),
+      var(--bg-deep);
+  }
+
+  /* HEADER */
+  .header {
+    height: 56px;
+    background: var(--bg-navy);
+    border-bottom: 1px solid var(--border-violet);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    justify-content: space-between;
+    animation: slideDown 0.5s ease-out;
+  }
+  @keyframes slideDown {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .header-left { display: flex; align-items: baseline; gap: 10px; }
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 20px;
+    color: var(--accent-pink);
+    letter-spacing: -0.02em;
+  }
+  .logo-sub {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+  }
+  .status-pill.online .status-dot {
+    background: var(--accent-green);
+    box-shadow: 0 0 8px var(--accent-green);
+    animation: pulse 2s infinite;
+  }
+  .status-pill.offline .status-dot { background: var(--accent-red); }
+  .status-pill.online { color: var(--accent-green); }
+  .status-pill.offline { color: var(--accent-red); }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .header-right {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+  }
+
+  /* MAIN GRID */
+  .main {
+    display: grid;
+    grid-template-columns: 22% 45% 33%;
+    height: calc(100vh - 56px);
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .panel {
+    background: var(--glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-violet);
+    border-radius: 12px;
+    overflow: hidden;
+    animation: fadeUp 0.6s ease-out backwards;
+  }
+  .panel-left { animation-delay: 0.1s; }
+  .panel-center {
+    animation-delay: 0.2s;
+    background: var(--bg-navy);
+    display: flex;
+    flex-direction: column;
+  }
+  .panel-right { animation-delay: 0.3s; }
+  @keyframes fadeUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .panel-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  /* LEFT PANEL */
+  .panel-left {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    gap: 16px;
+  }
+
+  .scenario-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .scenario-btn {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-violet);
+    color: var(--text-primary);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    padding: 10px 16px;
+    width: 100%;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    letter-spacing: 0.05em;
+  }
+  .scenario-btn:hover:not(:disabled) {
+    border-color: var(--accent-pink);
+    color: var(--accent-pink);
+  }
+  .scenario-btn.active {
+    background: var(--accent-pink);
+    color: var(--bg-deep);
+    border-color: var(--accent-pink);
+    font-weight: 700;
+  }
+  .scenario-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .timeline {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-right: 4px;
+  }
+  .timeline::-webkit-scrollbar { width: 4px; }
+  .timeline::-webkit-scrollbar-thumb { background: var(--border-violet); border-radius: 2px; }
+  .timeline::-webkit-scrollbar-track { background: transparent; }
+
+  .timeline-empty {
+    color: var(--text-dim);
+    font-size: 12px;
+    text-align: center;
+    padding: 30px 0;
+    font-style: italic;
+  }
+
+  .turn-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.02);
+    border-left: 2px solid transparent;
+    transition: all 0.3s;
+  }
+  .turn-row.missing {
+    background: rgba(239,68,68,0.08);
+    border-left: 2px dashed var(--accent-red);
+    box-shadow: inset 0 0 8px rgba(239,68,68,0.05);
+  }
+  .turn-row.flash {
+    animation: flashRed 0.4s ease-in-out 3;
+  }
+  @keyframes flashRed {
+    0%, 100% { background: rgba(239,68,68,0.08); }
+    50% { background: rgba(239,68,68,0.4); }
+  }
+  .turn-icon {
+    width: 10px;
+    height: 10px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+  }
+  .turn-icon.available { color: var(--accent-green); }
+  .turn-icon.missing { color: var(--accent-red); }
+  .turn-icon.inferred { color: var(--accent-amber); }
+  .turn-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+  .role-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    letter-spacing: 0.05em;
+  }
+  .role-badge.user { background: rgba(59,130,246,0.2); color: var(--accent-blue); }
+  .role-badge.ai { background: rgba(167,139,250,0.2); color: var(--accent-purple); }
+  .turn-preview {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+  .turn-row.missing .turn-preview {
+    color: var(--accent-red);
+    opacity: 0.7;
+    font-style: italic;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+  }
+
+  .simulate-btn {
+    background: transparent;
+    border: 2px solid var(--accent-red);
+    color: var(--accent-red);
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 11px;
+    padding: 14px;
+    width: 100%;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.1em;
+  }
+  .simulate-btn:hover:not(:disabled) {
+    background: rgba(239,68,68,0.1);
+    box-shadow: 0 0 16px rgba(239,68,68,0.4);
+  }
+  .simulate-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    border-color: var(--text-dim);
+    color: var(--text-dim);
+  }
+  .simulate-btn.active-loss {
+    border-color: var(--accent-amber);
+    color: var(--accent-amber);
+    cursor: not-allowed;
+    opacity: 0.8;
+  }
+
+  /* CENTER PANEL */
+  .chat-header {
+    height: 44px;
+    border-bottom: 1px solid rgba(129,104,157,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    flex-shrink: 0;
+  }
+  .chat-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.15em;
+  }
+  .integrity-inline {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    letter-spacing: 0.05em;
+  }
+  .integrity-inline.high { color: var(--accent-green); border: 1px solid rgba(16,185,129,0.3); }
+  .integrity-inline.med { color: var(--accent-amber); border: 1px solid rgba(245,158,11,0.3); }
+  .integrity-inline.low { color: var(--accent-red); border: 1px solid rgba(239,68,68,0.3); }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .chat-messages::-webkit-scrollbar { width: 6px; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--border-violet); border-radius: 3px; }
+
+  .chat-empty {
+    color: var(--text-dim);
+    font-size: 14px;
+    text-align: center;
+    margin: auto;
+    font-style: italic;
+  }
+
+  .msg-wrap {
+    display: flex;
+    flex-direction: column;
+    max-width: 75%;
+    animation: msgIn 0.3s ease-out;
+  }
+  @keyframes msgIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .msg-wrap.user { align-self: flex-end; align-items: flex-end; }
+  .msg-wrap.ai { align-self: flex-start; align-items: flex-start; }
+
+  .msg-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    margin-bottom: 4px;
+    padding: 0 4px;
+  }
+  .msg-wrap.user .msg-label { color: var(--accent-pink); }
+  .msg-wrap.ai .msg-label { color: var(--accent-purple); }
+
+  .msg-bubble {
+    padding: 12px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary);
+  }
+  .msg-wrap.user .msg-bubble {
+    background: rgba(255,208,236,0.12);
+    border: 1px solid rgba(255,208,236,0.25);
+    border-radius: 12px 12px 2px 12px;
+  }
+  .msg-wrap.ai .msg-bubble {
+    background: var(--glass);
+    border: 1px solid var(--border-violet);
+    border-radius: 12px 12px 12px 2px;
+  }
+
+  .recon-banner {
+    background: rgba(245,158,11,0.12);
+    border: 1px solid rgba(245,158,11,0.35);
+    border-radius: 8px;
+    padding: 10px 14px;
+    border-left: 3px solid var(--accent-amber);
+    margin-bottom: 8px;
+    max-width: 75%;
+    align-self: flex-start;
+    animation: bannerIn 0.4s ease-out;
+  }
+  @keyframes bannerIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .recon-banner.pulse-amber { animation: bannerIn 0.4s ease-out, pulseAmber 2s ease-in-out; }
+  @keyframes pulseAmber {
+    0%, 100% { border-left-color: var(--accent-amber); }
+    50% { border-left-color: rgba(245,158,11,0.3); box-shadow: 0 0 12px rgba(245,158,11,0.3); }
+  }
+  .recon-line1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .recon-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--accent-amber);
+    letter-spacing: 0.1em;
+    font-weight: 700;
+  }
+  .conf-badge {
+    background: rgba(16,185,129,0.15);
+    color: var(--accent-green);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 700;
+  }
+  .recon-strategy {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+  .recon-inferred {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  .typing {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 12px 16px;
+    background: var(--glass);
+    border: 1px solid var(--border-violet);
+    border-radius: 12px 12px 12px 2px;
+    align-self: flex-start;
+    max-width: 75%;
+  }
+  .typing span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-purple);
+    animation: typingDot 1.4s infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typingDot {
+    0%, 60%, 100% { opacity: 0.2; }
+    30% { opacity: 1; }
+  }
+
+  .input-area {
+    background: var(--bg-panel);
+    border-top: 1px solid var(--border-violet);
+    padding: 16px 20px;
+    display: flex;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .input-text {
+    flex: 1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-violet);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--text-primary);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: all 0.2s;
+  }
+  .input-text:focus {
+    border-color: var(--accent-pink);
+    box-shadow: 0 0 0 3px rgba(255,208,236,0.1);
+  }
+  .input-text::placeholder { color: var(--text-dim); }
+  .input-text:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .send-btn {
+    background: var(--accent-pink);
+    color: var(--bg-deep);
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 11px;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    transition: opacity 0.2s;
+  }
+  .send-btn:hover:not(:disabled) { opacity: 0.9; }
+  .send-btn:disabled {
+    background: var(--text-dim);
+    color: var(--bg-navy);
+    cursor: not-allowed;
+  }
+
+  /* RIGHT PANEL */
+  .panel-right {
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  .panel-right::-webkit-scrollbar { width: 4px; }
+  .panel-right::-webkit-scrollbar-thumb { background: var(--border-violet); border-radius: 2px; }
+
+  .section { display: flex; flex-direction: column; gap: 10px; }
+  .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  /* Integrity ring */
+  .ring-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 0;
+  }
+  .ring-svg { width: 100px; height: 100px; transform: rotate(-90deg); }
+  .ring-bg { stroke: rgba(255,255,255,0.06); fill: none; stroke-width: 8; }
+  .ring-fg { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 0.8s ease, stroke 0.4s; }
+  .ring-fg.high { stroke: var(--accent-green); }
+  .ring-fg.med { stroke: var(--accent-amber); }
+  .ring-fg.low { stroke: var(--accent-red); }
+  .ring-container { position: relative; width: 100px; height: 100px; }
+  .ring-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Space Mono', monospace;
+    font-size: 24px;
+    font-weight: 700;
+  }
+  .ring-text.high { color: var(--accent-green); }
+  .ring-text.med { color: var(--accent-amber); }
+  .ring-text.low { color: var(--accent-red); }
+  .ring-caption {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+  }
+  .ring-pulse { animation: ringPulse 0.6s ease-in-out 3; }
+  @keyframes ringPulse {
+    0%, 100% { transform: rotate(-90deg) scale(1); }
+    50% { transform: rotate(-90deg) scale(1.05); }
+  }
+
+  /* Gap */
+  .gap-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .gap-row .yes { color: var(--accent-red); font-weight: 700; }
+  .gap-row .no { color: var(--accent-green); font-weight: 700; }
+  .gap-range { color: var(--accent-amber); }
+
+  .severity-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    display: inline-block;
+  }
+  .severity-badge.LOW { background: rgba(16,185,129,0.2); color: var(--accent-green); }
+  .severity-badge.MEDIUM { background: rgba(245,158,11,0.2); color: var(--accent-amber); }
+  .severity-badge.HIGH { background: rgba(239,68,68,0.2); color: var(--accent-red); }
+
+  /* Reconstruction */
+  .recon-conf-big {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 32px;
+    color: var(--accent-pink);
+    line-height: 1;
+  }
+  .strategy-pill {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+  }
+  .strategy-pill.silent { background: rgba(16,185,129,0.2); color: var(--accent-green); }
+  .strategy-pill.soft { background: rgba(245,158,11,0.2); color: var(--accent-amber); }
+  .strategy-pill.ask_user { background: rgba(239,68,68,0.2); color: var(--accent-red); }
+
+  .topics { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .topic-tag {
+    background: rgba(167,139,250,0.15);
+    border: 1px solid var(--border-violet);
+    color: var(--accent-purple);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  /* Memory cards */
+  .mem-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(129,104,157,0.3);
+    border-radius: 6px;
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .mem-content {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+  .mem-score {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--accent-purple);
+    flex-shrink: 0;
+  }
+
+  /* Sequence sync */
+  .sync-stats {
+    display: flex;
+    gap: 16px;
+  }
+  .sync-stat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .sync-stat-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+  }
+  .sync-stat-val {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .sync-stat-val.avail { color: var(--accent-green); }
+  .sync-stat-val.miss { color: var(--accent-red); }
+
+  .sync-bar {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--accent-red);
+    overflow: hidden;
+    display: flex;
+  }
+  .sync-bar-avail {
+    background: var(--accent-green);
+    height: 100%;
+    transition: width 0.5s ease;
+  }
+
+  /* Toasts */
+  .toast-top {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(239,68,68,0.95);
+    color: white;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    letter-spacing: 0.15em;
+    z-index: 1000;
+    box-shadow: 0 8px 24px rgba(239,68,68,0.3);
+    animation: toastIn 0.3s ease-out;
+  }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translate(-50%, -10px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+  }
+  .toast-err {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(239,68,68,0.95);
+    color: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    padding: 10px 16px;
+    border-radius: 6px;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    animation: toastIn 0.3s ease-out;
+    max-width: 300px;
+  }
+
+  .hidden { display: none !important; }
+
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">ContextRevive</div>
+    <div class="logo-sub">/ context recovery engine</div>
+  </div>
+  <div id="statusPill" class="status-pill offline">
+    <span class="status-dot"></span>
+    <span id="statusText">CHECKING...</span>
+  </div>
+  <div class="header-right">AI-08 · HackFusion 2.0</div>
+</div>
+
+<div class="main">
+
+  <!-- LEFT PANEL -->
+  <div class="panel panel-left">
+    <div class="panel-title">SEQUENCE LOG</div>
+    <div class="scenario-buttons">
+      <button class="scenario-btn" data-scenario="customer_support" id="btnCustomer" disabled>Customer Support</button>
+      <button class="scenario-btn" data-scenario="student_tutor" id="btnTutor" disabled>Student Tutor</button>
+    </div>
+    <div class="timeline" id="timeline">
+      <div class="timeline-empty">Select a scenario to load timeline</div>
+    </div>
+    <button class="simulate-btn" id="simulateBtn" disabled>⚠ SIMULATE DATA LOSS</button>
+  </div>
+
+  <!-- CENTER PANEL -->
+  <div class="panel panel-center">
+    <div class="chat-header">
+      <div class="chat-title" id="chatTitle">NO SESSION ACTIVE</div>
+      <div class="integrity-inline high" id="integrityInline">INTEGRITY 100%</div>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-empty">Select a scenario to begin the conversation.</div>
+    </div>
+    <div class="input-area">
+      <input type="text" class="input-text" id="chatInput" placeholder="Continue the conversation..." disabled />
+      <button class="send-btn" id="sendBtn" disabled>SEND →</button>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel panel-right">
+    <div class="panel-title">ENGINE INTERNALS</div>
+
+    <div class="section">
+      <div class="section-label">SESSION INTEGRITY</div>
+      <div class="ring-wrap">
+        <div class="ring-container" id="ringContainer">
+          <svg class="ring-svg" viewBox="0 0 100 100">
+            <circle class="ring-bg" cx="50" cy="50" r="42" />
+            <circle class="ring-fg high" id="ringFg" cx="50" cy="50" r="42"
+              stroke-dasharray="263.89" stroke-dashoffset="0" />
+          </svg>
+          <div class="ring-text high" id="ringText">100%</div>
+        </div>
+        <div class="ring-caption">INTEGRITY</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">GAP ANALYSIS</div>
+      <div class="gap-row"><span>Gaps Detected:</span><span id="gapDetected" class="no">NO</span></div>
+      <div class="gap-row hidden" id="gapRangeRow"><span>Gap Range:</span><span class="gap-range" id="gapRange">—</span></div>
+      <div class="gap-row hidden" id="gapMissingRow"><span>Missing:</span><span id="gapMissing">0 turns</span></div>
+      <div class="hidden" id="gapSeverityWrap"><span class="severity-badge LOW" id="gapSeverity">LOW</span></div>
+    </div>
+
+    <div class="section hidden" id="reconSection">
+      <div class="section-label">LAST RECONSTRUCTION</div>
+      <div class="recon-conf-big" id="reconConf">—</div>
+      <div><span class="strategy-pill silent" id="reconStrategy">SILENT RECOVERY</span></div>
+      <div class="topics" id="reconTopics"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">MEMORY STORE</div>
+      <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text-muted);">
+        Stored: <span id="memTotal">0</span> memories
+      </div>
+      <div id="memCards"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">SEQUENCE SYNC</div>
+      <div class="sync-stats">
+        <div class="sync-stat">
+          <div class="sync-stat-label">AVAILABLE</div>
+          <div class="sync-stat-val avail" id="syncAvail">0</div>
+        </div>
+        <div class="sync-stat">
+          <div class="sync-stat-label">MISSING</div>
+          <div class="sync-stat-val miss" id="syncMiss">0</div>
+        </div>
+      </div>
+      <div class="sync-bar"><div class="sync-bar-avail" id="syncBar" style="width:100%"></div></div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+  const API = 'http://localhost:8000';
+  let sessionId = null;
+  let backendOnline = false;
+  let pollTimer = null;
+  let lastReconstruction = null;
+  let waitingResponse = false;
+
+  // ---------- Utility ----------
+  function showErrorToast(msg) {
+    const t = document.createElement('div');
+    t.className = 'toast-err';
+    t.textContent = 'API Error: ' + msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+  }
+  function showTopToast(msg) {
+    const t = document.createElement('div');
+    t.className = 'toast-top';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2000);
+  }
+
+  async function api(method, path, body) {
+    try {
+      const opts = { method, headers: { 'Content-Type': 'application/json' } };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(API + path, opts);
+      if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+      return await res.json();
+    } catch (e) {
+      showErrorToast(e.message);
+      throw e;
+    }
+  }
+
+  // ---------- Health ----------
+  async function checkHealth() {
+    const pill = document.getElementById('statusPill');
+    const txt = document.getElementById('statusText');
+    try {
+      const res = await fetch(API + '/health');
+      if (res.ok) {
+        pill.classList.remove('offline'); pill.classList.add('online');
+        txt.textContent = 'ENGINE ONLINE';
+        backendOnline = true;
+        document.getElementById('btnCustomer').disabled = false;
+        document.getElementById('btnTutor').disabled = false;
+      } else throw new Error('not ok');
+    } catch (e) {
+      pill.classList.remove('online'); pill.classList.add('offline');
+      txt.textContent = 'BACKEND OFFLINE — start API server';
+      backendOnline = false;
+    }
+  }
+
+  // ---------- Scenarios ----------
+  document.querySelectorAll('.scenario-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!backendOnline) return;
+      document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const scenario = btn.dataset.scenario;
+      try {
+        const data = await api('POST', '/sessions', { scenario });
+        sessionId = data.session_id || data.id || data.sessionId;
+        if (!sessionId) throw new Error('no session id returned');
+
+        document.getElementById('chatTitle').textContent =
+          (scenario === 'customer_support' ? 'CUSTOMER SUPPORT SESSION' : 'STUDENT TUTOR SESSION');
+        document.getElementById('chatMessages').innerHTML = '';
+        document.getElementById('chatInput').disabled = false;
+        document.getElementById('sendBtn').disabled = false;
+        document.getElementById('simulateBtn').disabled = false;
+        document.getElementById('simulateBtn').classList.remove('active-loss');
+        document.getElementById('simulateBtn').textContent = '⚠ SIMULATE DATA LOSS';
+        lastReconstruction = null;
+        document.getElementById('reconSection').classList.add('hidden');
+
+        await refreshStatus();
+
+        // Replay loaded turns as chat history
+        const status = await api('GET', `/sessions/${sessionId}/status`);
+        const turns = status.timeline || [];
+        const chatMessages = document.getElementById('chatMessages');
+        chatMessages.innerHTML = '';
+        turns.forEach(turn => {
+          const w = document.createElement('div');
+          w.className = `msg-wrap ${turn.role === 'user' ? 'user' : 'ai'}`;
+          w.dataset.turnIndex = turn.turn_index;
+          w.innerHTML = `
+            <div class="msg-label">${turn.role === 'user' ? 'USER' : 'CONTEXT REVIVE'}</div>
+            <div class="msg-bubble">${escapeHtml(turn.content_preview || turn.content || '')}</div>`;
+          chatMessages.appendChild(w);
+        });
+        scrollChat();
+
+        startPolling();
+      } catch (e) { /* error toast already shown */ }
+    });
+  });
+
+  // ---------- Status / Timeline ----------
+  async function refreshStatus() {
+    if (!sessionId) return;
+    try {
+      const s = await api('GET', `/sessions/${sessionId}/status`);
+      renderTimeline(s);
+      renderRightPanel(s);
+    } catch (e) {}
+  }
+
+  function renderTimeline(s) {
+    const t = document.getElementById('timeline');
+    t.innerHTML = '';
+    const turns = s.turns || s.timeline || [];
+    if (!turns.length) {
+      t.innerHTML = '<div class="timeline-empty">No turns yet</div>';
+      return;
+    }
+    turns.forEach((turn, idx) => {
+      const row = document.createElement('div');
+      const status = turn.status || (turn.missing ? 'missing' : 'available');
+      row.className = 'turn-row ' + (status === 'missing' ? 'missing' : '');
+      row.dataset.idx = idx;
+      const num = (turn.turn_index !== undefined ? turn.turn_index : idx + 1).toString().padStart(2, '0');
+      const role = (turn.role || 'user').toLowerCase();
+      const roleLabel = role === 'user' ? 'USR' : 'SYS';
+      let iconChar = '●', iconCls = 'available';
+      if (status === 'missing') { iconChar = '✕'; iconCls = 'missing'; }
+      else if (status === 'inferred') { iconChar = '◆'; iconCls = 'inferred'; }
+      const content = turn.content || turn.text || '';
+      const preview = status === 'missing' ? '— DATA UNAVAILABLE —' :
+        (content.length > 45 ? content.slice(0, 42) + '...' : content);
+      row.innerHTML = `
+        <div class="turn-icon ${iconCls}">${iconChar}</div>
+        <div class="turn-num">T${num}</div>
+        <div class="role-badge ${role}">${roleLabel}</div>
+        <div class="turn-preview">${escapeHtml(preview)}</div>`;
+      t.appendChild(row);
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+  }
+
+  function renderRightPanel(s) {
+    const integrity = Math.round((s.integrity_score ?? s.integrity ?? s.session_integrity ?? 1) * 100);
+    setIntegrity(integrity);
+
+    const gaps = s.gap_report || s.gaps || {};
+    const hasGaps = gaps.detected || gaps.has_gaps || (gaps.range && gaps.range.length);
+    const gapEl = document.getElementById('gapDetected');
+    if (hasGaps) {
+      gapEl.textContent = 'YES'; gapEl.className = 'yes';
+      const range = (gaps.gap_ranges && gaps.gap_ranges[0]) || gaps.range || [];
+      if (range.length === 2) {
+        document.getElementById('gapRangeRow').classList.remove('hidden');
+        document.getElementById('gapRange').textContent = `Turns ${range[0]}–${range[1]}`;
+      }
+      const missCount = gaps.total_missing || gaps.missing_count || (range.length === 2 ? range[1] - range[0] + 1 : 0);
+      document.getElementById('gapMissingRow').classList.remove('hidden');
+      document.getElementById('gapMissing').textContent = `${missCount} turns`;
+      const sev = (gaps.severity || (missCount >= 5 ? 'HIGH' : missCount >= 3 ? 'MEDIUM' : 'LOW')).toUpperCase();
+      document.getElementById('gapSeverityWrap').classList.remove('hidden');
+      const sevEl = document.getElementById('gapSeverity');
+      sevEl.className = 'severity-badge ' + sev;
+      sevEl.textContent = sev;
+    } else {
+      gapEl.textContent = 'NO'; gapEl.className = 'no';
+      document.getElementById('gapRangeRow').classList.add('hidden');
+      document.getElementById('gapMissingRow').classList.add('hidden');
+      document.getElementById('gapSeverityWrap').classList.add('hidden');
+    }
+
+    if (lastReconstruction) {
+      document.getElementById('reconSection').classList.remove('hidden');
+      const conf = Math.round((lastReconstruction.confidence || 0) * 100);
+      document.getElementById('reconConf').textContent = conf + '%';
+      const strat = (lastReconstruction.strategy || 'silent').toLowerCase();
+      const sEl = document.getElementById('reconStrategy');
+      sEl.className = 'strategy-pill ' + strat;
+      sEl.textContent = strat === 'silent' ? 'SILENT RECOVERY' :
+                        strat === 'soft' ? 'SOFT RECOVERY' : 'CLARIFICATION';
+      const topicsEl = document.getElementById('reconTopics');
+      topicsEl.innerHTML = '';
+      (lastReconstruction.topics || []).forEach(tp => {
+        const span = document.createElement('span');
+        span.className = 'topic-tag';
+        span.textContent = tp;
+        topicsEl.appendChild(span);
+      });
+    }
+
+    const mem = s.memory_snapshot || s.memory || {};
+    document.getElementById('memTotal').textContent = mem.total ?? mem.count ?? 0;
+    const cards = document.getElementById('memCards');
+    cards.innerHTML = '';
+    (mem.top_priorities || []).slice(0, 3).forEach(m => {
+      const c = document.createElement('div');
+      c.className = 'mem-card';
+      const txt = m.content || m.text || '';
+      const score = m.priority || m.score || 0;
+      c.innerHTML = `<div class="mem-content">${escapeHtml(txt.slice(0, 60))}</div><div class="mem-score">${(typeof score === 'number' ? score.toFixed(2) : score)}</div>`;
+      cards.appendChild(c);
+    });
+
+    const totalTurns = s.total_turns || 10;
+    const missCount2 = (s.gap_report && s.gap_report.total_missing) || 0;
+    const avail = totalTurns - missCount2;
+    const miss = missCount2;
+    document.getElementById('syncAvail').textContent = avail;
+    document.getElementById('syncMiss').textContent = miss;
+    const total = avail + miss;
+    document.getElementById('syncBar').style.width = (total ? (avail / total * 100) : 100) + '%';
+
+    // chat header inline
+    const il = document.getElementById('integrityInline');
+    il.textContent = `INTEGRITY ${integrity}%`;
+    il.className = 'integrity-inline ' + (integrity >= 80 ? 'high' : integrity >= 50 ? 'med' : 'low');
+  }
+
+  function setIntegrity(pct) {
+    const C = 2 * Math.PI * 42; // 263.89
+    const off = C * (1 - pct / 100);
+    const fg = document.getElementById('ringFg');
+    const text = document.getElementById('ringText');
+    fg.style.strokeDashoffset = off;
+    const cls = pct >= 80 ? 'high' : pct >= 50 ? 'med' : 'low';
+    fg.classList.remove('high', 'med', 'low'); fg.classList.add(cls);
+    text.classList.remove('high', 'med', 'low'); text.classList.add(cls);
+    text.textContent = pct + '%';
+  }
+
+  // ---------- Simulate ----------
+  document.getElementById('simulateBtn').addEventListener('click', async () => {
+    if (!sessionId) return;
+    const btn = document.getElementById('simulateBtn');
+    try {
+      await api('POST', `/sessions/${sessionId}/simulate-gap`, { turn_indices: [5,6,7,8] });
+      btn.disabled = true;
+      btn.classList.add('active-loss');
+      btn.textContent = '◼ DATA LOSS ACTIVE';
+      showTopToast('⚠ INTEGRITY BREACH DETECTED');
+      // Pulse ring
+      const ringSvg = document.querySelector('.ring-svg');
+      ringSvg.classList.add('ring-pulse');
+      setTimeout(() => ringSvg.classList.remove('ring-pulse'), 1800);
+      await refreshStatus();
+      // Grey out lost turns in chat
+      [5,6,7,8].forEach(idx => {
+        const bubble = document.querySelector(`.msg-wrap[data-turn-index="${idx}"]`);
+        if (bubble) {
+          bubble.style.opacity = '0.3';
+          bubble.style.textDecoration = 'line-through';
+          bubble.querySelector('.msg-label').textContent += ' [LOST]';
+        }
+      });
+      // Flash missing rows
+      document.querySelectorAll('.turn-row.missing').forEach(r => {
+        r.classList.add('flash');
+        setTimeout(() => r.classList.remove('flash'), 1300);
+      });
+    } catch (e) {}
+  });
+
+  // ---------- Chat ----------
+  document.getElementById('sendBtn').addEventListener('click', sendMessage);
+  document.getElementById('chatInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+
+  async function sendMessage() {
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    if (!text) return;
+    if (!sessionId) {
+      appendSystemMsg('Select a scenario first to begin.');
+      return;
+    }
+    if (waitingResponse) return;
+    waitingResponse = true;
+    appendUserMsg(text);
+    input.value = '';
+    const typing = appendTyping();
+    document.getElementById('sendBtn').disabled = true;
+
+    try {
+      const data = await api('POST', `/sessions/${sessionId}/chat`, { message: text });
+      typing.remove();
+      const used = data.used_reconstruction || data.reconstruction_used;
+      if (used) {
+        const recon = data.reconstruction || {
+          confidence: data.confidence,
+          strategy: data.strategy,
+          inferred_summary: data.inferred_summary,
+          topics: data.topics
+        };
+        lastReconstruction = recon;
+        appendReconBanner(recon);
+      }
+      const replyText = data.response_text || data.reply || data.response || '(no response)';
+      appendAiMsg(replyText);
+      await refreshStatus();
+    } catch (e) {
+      typing.remove();
+    } finally {
+      waitingResponse = false;
+      document.getElementById('sendBtn').disabled = false;
+      scrollChat();
+    }
+  }
+
+  function appendUserMsg(text) {
+    const m = document.getElementById('chatMessages');
+    clearEmpty();
+    const w = document.createElement('div');
+    w.className = 'msg-wrap user';
+    w.innerHTML = `<div class="msg-label">YOU</div><div class="msg-bubble">${escapeHtml(text)}</div>`;
+    m.appendChild(w);
+    scrollChat();
+  }
+  function appendAiMsg(text) {
+    const m = document.getElementById('chatMessages');
+    clearEmpty();
+    const w = document.createElement('div');
+    w.className = 'msg-wrap ai';
+    w.innerHTML = `<div class="msg-label">CONTEXT REVIVE</div><div class="msg-bubble">${escapeHtml(text)}</div>`;
+    m.appendChild(w);
+    scrollChat();
+  }
+  function appendReconBanner(recon) {
+    const m = document.getElementById('chatMessages');
+    clearEmpty();
+    const conf = Math.round((recon.confidence || 0) * 100);
+    const strat = (recon.strategy || 'silent').toLowerCase();
+    const stratLabel = strat === 'silent' ? 'SILENT RECOVERY — continued without interruption' :
+                       strat === 'soft' ? 'SOFT RECOVERY — acknowledged prior context' :
+                       'CLARIFICATION REQUESTED — asked user for recap';
+    const inf = recon.inferred_summary || '';
+    const banner = document.createElement('div');
+    banner.className = 'recon-banner pulse-amber';
+    banner.innerHTML = `
+      <div class="recon-line1">
+        <span class="recon-tag">⚡ CONTEXT RECOVERED</span>
+        <span class="conf-badge">${conf}% CONFIDENCE</span>
+      </div>
+      <div class="recon-strategy">${escapeHtml(stratLabel)}</div>
+      ${inf ? `<div class="recon-inferred">Inferred: ${escapeHtml(inf)}</div>` : ''}`;
+    m.appendChild(banner);
+  }
+  function appendTyping() {
+    const m = document.getElementById('chatMessages');
+    clearEmpty();
+    const t = document.createElement('div');
+    t.className = 'typing';
+    t.innerHTML = '<span></span><span></span><span></span>';
+    m.appendChild(t);
+    scrollChat();
+    return t;
+  }
+  function appendSystemMsg(text) {
+    const m = document.getElementById('chatMessages');
+    const w = document.createElement('div');
+    w.className = 'msg-wrap ai';
+    w.innerHTML = `<div class="msg-label">SYSTEM</div><div class="msg-bubble" style="opacity:0.7">${escapeHtml(text)}</div>`;
+    m.appendChild(w);
+    scrollChat();
+  }
+  function clearEmpty() {
+    const e = document.querySelector('.chat-empty');
+    if (e) e.remove();
+  }
+  function scrollChat() {
+    const m = document.getElementById('chatMessages');
+    m.scrollTop = m.scrollHeight;
+  }
+
+  // ---------- Polling ----------
+  function startPolling() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(refreshStatus, 3000);
+  }
+
+  // ---------- Init ----------
+  checkHealth();
+  setInterval(checkHealth, 10000);
+
+</script>
+
+</body>
+</html>

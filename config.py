@@ -1,6 +1,11 @@
 # ContextRevive — Central Configuration
 # All AI runs locally via Ollama. No external API keys needed.
 
+import os
+from dotenv import load_dotenv
+load_dotenv()
+USE_GROQ = os.environ.get("USE_GROQ", "false").lower() == "true"
+
 OLLAMA_URL = "http://localhost:11434"
 OLLAMA_MODEL = "llama3.1:8b"
 OLLAMA_EMBED_MODEL = "nomic-embed-text"

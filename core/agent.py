@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from core.tracker import ConversationTracker
 from core.memory import MemoryManager
 from core.reconstructor import ContextReconstructor, ReconstructionResult
+from core.summarizer import ContextSummarizer
 from core.ollama_client import ask_ollama, ask_groq
 from config import USE_GROQ
 llm = ask_groq if USE_GROQ else ask_ollama
@@ -57,6 +58,7 @@ class ContextReviveAgent:
         self.tracker = ConversationTracker()
         self.memory = MemoryManager()
         self.reconstructor = ContextReconstructor()
+        self.summarizer = ContextSummarizer()
 
     # ------------------------------------------------------------------
     # Session management
@@ -142,14 +144,17 @@ class ContextReviveAgent:
             )
             used_reconstruction = True
 
-        # Step 4 — Build context
+        # Step 4 — Build context with summarization
         if used_reconstruction and reconstruction is not None:
             context = self.reconstructor.format_context_for_agent(
                 session_id, reconstruction, self.tracker
             )
         else:
             available = self.tracker.get_available_turns(session_id, last_n=6)
-            context = self.tracker.format_turns_as_text(available)
+            compression = self.summarizer.compress_context(
+                available, max_tokens=512
+            )
+            context = self.summarizer.format_for_agent(compression, self.tracker)
 
         # Step 5 — Build strategy-aware prompts
         strategy = reconstruction.strategy if reconstruction else "none"
@@ -237,6 +242,12 @@ class ContextReviveAgent:
             },
             "memory_snapshot": memory_snapshot,
             "timeline": timeline,
+            "compression_stats": self.summarizer.get_compression_stats(
+                self.summarizer.compress_context(
+                    self.tracker.get_available_turns(session_id),
+                    max_tokens=512,
+                )
+            ),
         }
 
 

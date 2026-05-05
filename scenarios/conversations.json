@@ -30,5 +30,25 @@
       { "turn": 9,  "role": "user", "content": "Got it. Can I use recursion for fibonacci?" },
       { "turn": 10, "role": "ai",   "content": "Yes. fib(n) = fib(n-1) + fib(n-2) with base cases fib(0)=0 and fib(1)=1." }
     ]
+  },
+  "project_planning": {
+    "description": "A team planning a product launch with scattered missing turns.",
+    "demo_gap": [3, 7, 11],
+    "turns": [
+      { "turn": 1,  "role": "user", "content": "Hey, we need to plan the product launch." },
+      { "turn": 2,  "role": "ai",   "content": "Sure. What is the target launch date?" },
+      { "turn": 3,  "role": "user", "content": "We are thinking March 15th for the beta." },
+      { "turn": 4,  "role": "ai",   "content": "Got it. March 15th for beta. Who is leading the launch?" },
+      { "turn": 5,  "role": "user", "content": "Sarah is leading. She confirmed the team is ready." },
+      { "turn": 6,  "role": "ai",   "content": "Great. Has the budget been approved for marketing?" },
+      { "turn": 7,  "role": "user", "content": "Yes, 50000 dollars approved for digital campaigns." },
+      { "turn": 8,  "role": "ai",   "content": "Perfect. I will note that. Any dependencies we should track?" },
+      { "turn": 9,  "role": "user", "content": "We are waiting on the API integration from the backend team." },
+      { "turn": 10, "role": "ai",   "content": "Understood. I will flag that as a blocker." },
+      { "turn": 11, "role": "user", "content": "Also the legal team needs to review the privacy policy." },
+      { "turn": 12, "role": "ai",   "content": "Added. Legal review of privacy policy before launch." },
+      { "turn": 13, "role": "user", "content": "That should cover the main blockers for now." },
+      { "turn": 14, "role": "ai",   "content": "Confirmed. I have noted all the key launch details and blockers." }
+    ]
   }
 }

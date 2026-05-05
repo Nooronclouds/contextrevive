@@ -85,44 +85,37 @@ class ContextReconstructor:
                 evidence_turns_used=[],
             )
 
-        # ----- STEP 1: Gather evidence -----
-        gap_range = gap_report.gap_ranges[0]  # first gap for demo
-        evidence = tracker.get_turns_around_gap(
-            session_id, gap_range, window=3
-        )
-        before_turns = evidence["before"]
-        after_turns = evidence["after"]
+        # Handle ALL gaps, not just the first one
+        all_summaries = []
+        all_topics = []
+        all_evidence = []
+        lowest_confidence = 1.0
 
-        # Retrieve relevant memories using the last available turn before gap
-        query = before_turns[-1].content if before_turns else ""
-        relevant_memories = memory_manager.retrieve_relevant(
-            session_id, query=query, top_k=3
-        ) if query else []
+        for gap_range in gap_report.gap_ranges:
+            evidence = tracker.get_turns_around_gap(
+                session_id, gap_range, window=3
+            )
+            before_turns = evidence["before"]
+            after_turns = evidence["after"]
 
-        # Track which turn indices were used as evidence
-        evidence_indices = (
-            [t.turn_index for t in before_turns]
-            + [t.turn_index for t in after_turns]
-        )
+            query = before_turns[-1].content if before_turns else ""
+            relevant_memories = memory_manager.retrieve_relevant(
+                session_id, query=query, top_k=3
+            ) if query else []
 
-        # ----- STEP 2: Format evidence as text -----
-        before_text = tracker.format_turns_as_text(before_turns)
-        after_text = tracker.format_turns_as_text(after_turns)
-        memory_text = "\n".join(
-            [f"- {m['content']}" for m in relevant_memories]
-        )
-        gap_size = gap_range[1] - gap_range[0] + 1
+            all_evidence += [t.turn_index for t in before_turns + after_turns]
 
-        # ----- STEP 3: Build prompt -----
-        system_prompt = (
-            "You are an expert at reconstructing missing conversation "
-            "context. Analyze the fragments given and infer what was likely "
-            "discussed in the missing portion. Be conservative — only infer "
-            "what the evidence strongly supports. Always respond with valid "
-            "JSON only, no other text."
-        )
+            before_text = tracker.format_turns_as_text(before_turns)
+            after_text = tracker.format_turns_as_text(after_turns)
+            memory_text = "\n".join([f"- {m['content']}" for m in relevant_memories])
+            gap_size = gap_range[1] - gap_range[0] + 1
 
-        user_prompt = f"""A conversation has {gap_size} missing turns.
+            system_prompt = (
+                "You are an expert at reconstructing missing conversation "
+                "context. Always respond with valid JSON only, no other text."
+            )
+
+            user_prompt = f"""A conversation has {gap_size} missing turns.
 
 CONVERSATION BEFORE THE GAP:
 {before_text}
@@ -135,32 +128,36 @@ RELEVANT STORED MEMORIES:
 
 The gap contains turns {gap_range[0]} to {gap_range[1]}.
 
-What was most likely discussed in those missing turns?
-
-Respond ONLY with this exact JSON format:
+Respond ONLY with this JSON:
 {{
-  "inferred_summary": "2-3 sentence description of what was likely discussed",
+  "inferred_summary": "2-3 sentence description",
   "topics_inferred": ["topic1", "topic2"],
   "confidence": 0.75,
-  "reasoning": "brief explanation of why you are confident or not"
+  "reasoning": "brief explanation"
 }}"""
 
-        # ----- STEP 4: Call Ollama -----
-        print(f"[Reconstructor] Calling llama3.1:8b for gap {gap_range}...")
-        raw_response = llm(user_prompt, system_prompt)
-        parsed = parse_llm_json(raw_response)
+            print(f"[Reconstructor] Reconstructing gap {gap_range}...")
+            raw_response = llm(user_prompt, system_prompt)
+            parsed = parse_llm_json(raw_response)
 
-        if not parsed:
-            confidence = 0.3
-            inferred_summary = "Could not determine missing context reliably."
-            topics_inferred = []
-        else:
-            confidence = float(parsed.get("confidence", 0.5))
-            confidence = max(0.0, min(1.0, confidence))  # clamp to 0–1
-            inferred_summary = parsed.get("inferred_summary", "")
-            topics_inferred = parsed.get("topics_inferred", [])
+            if not parsed:
+                conf = 0.3
+                summary = f"Could not reconstruct gap {gap_range}."
+                topics = []
+            else:
+                conf = max(0.0, min(1.0, float(parsed.get("confidence", 0.5))))
+                summary = parsed.get("inferred_summary", "")
+                topics = parsed.get("topics_inferred", [])
 
-        # ----- STEP 5: Determine strategy -----
+            all_summaries.append(f"[Gap {gap_range[0]}-{gap_range[1]}]: {summary}")
+            all_topics.extend(topics)
+            lowest_confidence = min(lowest_confidence, conf)
+
+        # Merge all gap reconstructions
+        inferred_summary = " ".join(all_summaries)
+        topics_inferred = list(set(all_topics))
+        confidence = lowest_confidence
+
         if confidence >= 0.75:
             strategy = "silent"
         elif confidence >= 0.55:
@@ -175,7 +172,7 @@ Respond ONLY with this exact JSON format:
             confidence=confidence,
             strategy=strategy,
             topics_inferred=topics_inferred,
-            evidence_turns_used=evidence_indices,
+            evidence_turns_used=list(set(all_evidence)),
         )
 
     # ------------------------------------------------------------------

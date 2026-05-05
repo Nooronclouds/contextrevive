@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+.env
+storage/chroma_db/
+storage/contextrevive.db
+*.db

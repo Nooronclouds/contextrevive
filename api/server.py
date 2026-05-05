@@ -1,0 +1,1 @@
+# FastAPI — 5 endpoints only

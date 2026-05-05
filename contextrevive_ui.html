@@ -766,6 +766,7 @@
     <div class="scenario-buttons">
       <button class="scenario-btn" data-scenario="customer_support" id="btnCustomer" disabled>Customer Support</button>
       <button class="scenario-btn" data-scenario="student_tutor" id="btnTutor" disabled>Student Tutor</button>
+      <button class="scenario-btn" data-scenario="project_planning" id="btnProject" disabled>Project Planning</button>
     </div>
     <div class="timeline" id="timeline">
       <div class="timeline-empty">Select a scenario to load timeline</div>
@@ -853,6 +854,7 @@
   const API = 'http://localhost:8000';
   let sessionId = null;
   let backendOnline = false;
+  let currentScenario = null;
   let pollTimer = null;
   let lastReconstruction = null;
   let waitingResponse = false;
@@ -898,6 +900,7 @@
         backendOnline = true;
         document.getElementById('btnCustomer').disabled = false;
         document.getElementById('btnTutor').disabled = false;
+        document.getElementById('btnProject').disabled = false;
       } else throw new Error('not ok');
     } catch (e) {
       pill.classList.remove('online'); pill.classList.add('offline');
@@ -913,13 +916,18 @@
       document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const scenario = btn.dataset.scenario;
+      currentScenario = scenario;
       try {
         const data = await api('POST', '/sessions', { scenario });
         sessionId = data.session_id || data.id || data.sessionId;
         if (!sessionId) throw new Error('no session id returned');
 
-        document.getElementById('chatTitle').textContent =
-          (scenario === 'customer_support' ? 'CUSTOMER SUPPORT SESSION' : 'STUDENT TUTOR SESSION');
+        const titles = {
+          customer_support: 'CUSTOMER SUPPORT SESSION',
+          student_tutor: 'STUDENT TUTOR SESSION',
+          project_planning: 'PROJECT PLANNING SESSION'
+        };
+        document.getElementById('chatTitle').textContent = titles[scenario] || 'SESSION';
         document.getElementById('chatMessages').innerHTML = '';
         document.getElementById('chatInput').disabled = false;
         document.getElementById('sendBtn').disabled = false;
@@ -1090,7 +1098,8 @@
     if (!sessionId) return;
     const btn = document.getElementById('simulateBtn');
     try {
-      await api('POST', `/sessions/${sessionId}/simulate-gap`, { turn_indices: [5,6,7,8] });
+      const gapIndices = currentScenario === 'project_planning' ? [3,7,11] : [5,6,7,8];
+      await api('POST', `/sessions/${sessionId}/simulate-gap`, { turn_indices: gapIndices });
       btn.disabled = true;
       btn.classList.add('active-loss');
       btn.textContent = '◼ DATA LOSS ACTIVE';

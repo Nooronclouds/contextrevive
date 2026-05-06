@@ -1,8 +1,8 @@
 # ContextRevive 🧠
 
-> **AI Context Recovery Engine** — Reconstructs missing conversation context using local LLMs via Ollama.
+> **AI Context Recovery Engine** — Reconstructs missing conversation context using local LLMs (Ollama) or Groq for fast inference.
 
-ContextRevive detects gaps in broken or truncated conversations and uses `llama3.1:8b` to infer what was likely discussed — so your AI assistant can keep answering coherently even when history is missing.
+ContextRevive detects gaps in broken or truncated conversations and uses an LLM to infer what was likely discussed — so your AI assistant can keep answering coherently even when history is missing. Backed by a priority-weighted vector memory and a rolling summarizer for long sessions.
 
 ---
 
@@ -22,17 +22,21 @@ When a conversation loses turns (corrupted, truncated, context-window overflow),
 ```
 contextrevive/
 ├── core/
-│   ├── ollama_client.py    ← Only file that talks to Ollama
-│   ├── tracker.py          ← Tracks turns, detects gaps, pure Python
+│   ├── ollama_client.py    ← LLM + embedding client (Ollama / Groq backends)
+│   ├── tracker.py          ← Tracks turns, detects gaps (multi-range)
 │   ├── memory.py           ← Priority-weighted vector memory
-│   ├── reconstructor.py    ← llama3.1:8b inference engine (the heart)
+│   ├── summarizer.py       ← Rolling conversation summarizer
+│   ├── reconstructor.py    ← Multi-gap inference engine (the heart)
 │   └── agent.py            ← Orchestrator, ties everything together
 ├── storage/
-│   └── vector_store.py     ← ChromaDB wrapper (cosine similarity)
+│   └── chroma_db/          ← Persistent ChromaDB store (cosine similarity)
 ├── api/
 │   └── server.py           ← FastAPI, 5 endpoints
 ├── scenarios/
-│   └── conversations.json  ← Demo scripts (customer support, tutor)
+│   └── conversations.json  ← Demo scripts: customer_support, student_tutor, project_planning
+├── static/                 ← Frontend assets
+├── contextrevive_ui.html   ← Single-page demo UI (3 scenarios + free chat)
+├── ui_styles.css
 ├── config.py               ← All settings in one place
 ├── main.py                 ← Startup health check
 └── requirements.txt
@@ -49,6 +53,7 @@ contextrevive/
   ollama pull llama3.1:8b
   ollama pull nomic-embed-text
   ```
+- *(Optional)* **Groq API key** for faster inference — set `USE_GROQ=true` and `GROQ_API_KEY=...` in `.env`
 
 ---
 
@@ -72,6 +77,9 @@ python main.py
 
 # 6. Run the API server
 uvicorn api.server:app --reload --port 8000
+
+# 7. Open the demo UI
+# Open contextrevive_ui.html in your browser (or serve via any static file server)
 ```
 
 ---
@@ -180,14 +188,15 @@ priority = 0.35 × recency
 
 | Component | Technology |
 |-----------|-----------|
-| LLM (generation) | `llama3.1:8b` via Ollama |
+| LLM (generation) | `llama3.1:8b` via Ollama *(default)* or Groq |
 | Embeddings | `nomic-embed-text` via Ollama |
 | Vector store | ChromaDB (persistent, cosine similarity) |
+| Summarization | Local LLM-driven rolling summary |
 | API framework | FastAPI + Uvicorn |
 | Data validation | Pydantic v2 |
-| HTTP client | requests / httpx |
+| Frontend | Vanilla HTML/CSS/JS (single page) |
 
-**No cloud APIs. No Anthropic. No OpenAI. 100% local.**
+**Default: 100% local. Optional Groq backend for fast cloud inference — no Anthropic, no OpenAI.**
 
 ---
 
@@ -195,12 +204,14 @@ priority = 0.35 × recency
 
 Two pre-written scripts in `scenarios/conversations.json`:
 
-| Scenario | Description | Gap turns |
-|----------|-------------|-----------|
-| `customer_support` | Damaged order → refund → replacement | 5–8 |
-| `student_tutor` | Recursion → factorial → base case | 5–8 |
+| Scenario | Description |
+|----------|-------------|
+| `customer_support` | Damaged order → refund → replacement |
+| `student_tutor` | Recursion → factorial → base case |
+| `project_planning` | Multi-turn project scoping with scattered gaps |
+| *Free Chat* (UI only) | Open-ended conversation, manually mark any turn(s) as missing |
 
-Each scenario has 10 turns. The demo gap (turns 5–8) covers the most critical context — exactly the portion the engine must reconstruct.
+The UI lets you simulate **multiple non-contiguous gap ranges** in a single session and watch the engine reconstruct each one independently.
 
 ---
 
@@ -209,6 +220,7 @@ Each scenario has 10 turns. The demo gap (turns 5–8) covers the most critical 
 All settings in `config.py`:
 
 ```python
+USE_GROQ = False                  # toggle Groq backend via env var USE_GROQ=true
 OLLAMA_URL = "http://localhost:11434"
 OLLAMA_MODEL = "llama3.1:8b"
 OLLAMA_EMBED_MODEL = "nomic-embed-text"
@@ -218,6 +230,12 @@ RELEVANCE_THRESHOLD = 0.65
 TOP_K_MEMORIES = 5
 DB_PATH = "./storage/contextrevive.db"
 CHROMA_PATH = "./storage/chroma_db"
+```
+
+`.env` overrides:
+```
+USE_GROQ=true
+GROQ_API_KEY=gsk_...
 ```
 
 ---
@@ -235,22 +253,29 @@ python core/agent.py           # End-to-end: no gap vs. with gap
 
 ---
 
-## 📌 v1 Limitations
+## ✅ What's Working
 
-- Only processes the **first** gap range per session (multiple gaps = next version)
-- No persistent sessions across server restarts (in-memory only)
-- No authentication on API endpoints
-- SQLite module (`storage/db.py`) not yet wired in (planned for v2)
+- Multi-gap reconstruction (non-contiguous ranges in a single session)
+- Rolling summarizer keeps long conversations within context budget
+- Groq backend for sub-second responses (Ollama remains the local default)
+- 3 scripted scenarios + a free-chat mode in the demo UI
+- Live transparency panel: gap ranges, integrity score, strategy, confidence
 
 ---
 
-## 🗺️ Roadmap (v2)
+## 📌 Current Limitations
+
+- No persistent sessions across server restarts (in-memory only)
+- No authentication on API endpoints
+
+---
+
+## 🗺️ Roadmap
 
 - [ ] Persistent sessions via SQLite
-- [ ] Multi-gap reconstruction
-- [ ] Web UI (transparency panel)
 - [ ] Streaming responses
 - [ ] Session export/import
+- [ ] Auth + multi-user isolation
 
 ---
 
